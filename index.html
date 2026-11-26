@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>다각형 순회 - 거북이 돈벌이</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+    }
+    h1 {
+      margin: 12px 0 4px;
+      font-size: 1.4rem;
+      color: #38bdf8;
+      text-shadow: 0 0 12px rgba(56,189,248,0.4);
+    }
+    .top-bar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 8px;
+      width: min(520px, 96vw);
+    }
+    .user-info {
+      font-size: 0.85rem;
+      color: #94a3b8;
+    }
+    .user-info strong { color: #38bdf8; }
+    .stats {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 8px;
+      font-size: 0.95rem;
+    }
+    .stat {
+      background: rgba(30,41,59,0.8);
+      padding: 6px 14px;
+      border-radius: 999px;
+      border: 1px solid #334155;
+    }
+    .stat span { color: #fbbf24; font-weight: 700; }
+    #gameCanvas {
+      background: #0f172a;
+      border-radius: 12px;
+      border: 2px solid #334155;
+      box-shadow: 0 0 30px rgba(56,189,248,0.15);
+      max-width: 100%;
+      touch-action: none;
+    }
+    .panel {
+      width: min(520px, 96vw);
+      margin: 12px 0 20px;
+      background: rgba(15,23,42,0.9);
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 12px;
+    }
+    .panel h2 {
+      font-size: 1.05rem;
+      color: #94a3b8;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 6px;
+    }
+    .shop-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    .shop-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #1e293b;
+      border-radius: 8px;
+      padding: 10px 12px;
+      border: 1px solid #334155;
+      gap: 10px;
+    }
+    .shop-item.owned { border-color: #22c55e; background: rgba(34,197,94,0.12); }
+    .shop-item.active { border-color: #38bdf8; box-shadow: 0 0 0 1px #38bdf8; }
+    .shop-info { flex: 1; min-width: 0; }
+    .shop-info strong { display: block; font-size: 0.95rem; }
+    .shop-info small { color: #94a3b8; font-size: 0.8rem; }
+    button {
+      background: #0ea5e9;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 7px 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
+      font-size: 0.9rem;
+    }
+    button:hover:not(:disabled) { background: #0284c7; }
+    button:disabled { background: #475569; color: #94a3b8; cursor: not-allowed; }
+    button.owned-btn { background: #22c55e; }
+    button.danger { background: #ef4444; }
+    button.danger:hover:not(:disabled) { background: #dc2626; }
+    button.ghost {
+      background: transparent;
+      border: 1px solid #475569;
+      color: #94a3b8;
+    }
+    button.ghost:hover { border-color: #94a3b8; color: #e2e8f0; }
+    .tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .tab {
+      flex: 1;
+      min-width: 70px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #94a3b8;
+      padding: 8px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+    }
+    .tab.active {
+      background: #0ea5e9;
+      color: white;
+      border-color: #0ea5e9;
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .hint {
+      text-align: center;
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-top: 6px;
+    }
+    /* 로그인 모달 */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 16px;
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 24px;
+      width: min(360px, 100%);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    }
+    .modal h2 {
+      color: #38bdf8;
+      margin-bottom: 16px;
+      text-align: center;
+      border: none;
+    }
+    .modal label {
+      display: block;
+      font-size: 0.85rem;
+      color: #94a3b8;
+      margin-bottom: 4px;
+      margin-top: 12px;
+    }
+    .modal input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-size: 1rem;
+    }
+    .modal input:focus {
+      outline: none;
+      border-color: #0ea5e9;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 20px;
+    }
+    .modal-actions button { flex: 1; padding: 10px; }
+    .modal-error {
+      color: #f87171;
+      font-size: 0.85rem;
+      margin-top: 10px;
+      text-align: center;
+      min-height: 1.2em;
+    }
+    .modal-switch {
+      text-align: center;
+      margin-top: 14px;
+      font-size: 0.85rem;
+      color: #94a3b8;
+    }
+    .modal-switch a {
+      color: #38bdf8;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    /* 랭킹 테이블 */
+    .rank-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    .rank-table th, .rank-table td {
+      padding: 8px 6px;
+      text-align: left;
+      border-bottom: 1px solid #334155;
+    }
+    .rank-table th { color: #94a3b8; font-weight: 600; }
+    .rank-table tr:hover td { background: rgba(56,189,248,0.08); }
+    .rank-me { background: rgba(56,189,248,0.15) !important; }
+    .rank-sort {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .rank-sort button { flex: 1; }
+    .rank-sort button.active { background: #0ea5e9; }
+    .save-status {
+      font-size: 0.75rem;
+      color: #64748b;
+      text-align: center;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <!-- 로그인 모달 -->
+  <div id="authModal" class="modal-overlay">
+    <div class="modal">
+      <h2 id="authTitle">로그인</h2>
+      <label>아이디</label>
+      <input id="authUser" type="text" maxlength="20" placeholder="영문/숫자 3~20자" autocomplete="username" />
+      <label>비밀번호</label>
+      <input id="authPass" type="password" maxlength="40" placeholder="4자 이상" autocomplete="current-password" />
+      <div class="modal-error" id="authError"></div>
+      <div class="modal-actions">
+        <button id="authSubmit">로그인</button>
+        <button class="ghost" id="authGuest">게스트로 하기</button>
+      </div>
+      <div class="modal-switch">
+        <span id="authSwitchText">계정이 없나요?</span>
+        <a id="authSwitchLink">회원가입</a>
+      </div>
+    </div>
+  </div>
+
+  <h1>🐢 다각형 순회</h1>
+  <div class="top-bar">
+    <div class="user-info" id="userInfo">게스트</div>
+    <button class="ghost" id="btnLogin" style="display:none; padding:4px 10px; font-size:0.8rem;">로그인</button>
+    <button class="ghost danger" id="btnLogout" style="display:none; padding:4px 10px; font-size:0.8rem;">로그아웃</button>
+  </div>
+  <div class="stats">
+    <div class="stat">💰 돈: <span id="money">0</span></div>
+    <div class="stat">🔄 바퀴: <span id="laps">0</span></div>
+    <div class="stat">⚡ 배율: <span id="mult">×1</span></div>
+  </div>
+  <p class="save-status" id="saveStatus"></p>
+
+  <canvas id="gameCanvas" width="480" height="360"></canvas>
+  <p class="hint">캐릭터가 다각형 외각을 한 바퀴 돌 때마다 돈이 들어옵니다</p>
+
+  <div class="panel">
+    <div class="tabs">
+      <button class="tab active" data-tab="poly">다각형</button>
+      <button class="tab" data-tab="mult">배율</button>
+      <button class="tab" data-tab="char">캐릭터</button>
+      <button class="tab" data-tab="rank">랭킹</button>
+    </div>
+
+    <div id="tab-poly" class="tab-content active">
+      <h2>다각형 구매 / 선택</h2>
+      <div class="shop-grid" id="poly-shop"></div>
+    </div>
+
+    <div id="tab-mult" class="tab-content">
+      <h2>돈 배율 업그레이드</h2>
+      <div class="shop-grid" id="mult-shop"></div>
+    </div>
+
+    <div id="tab-char" class="tab-content">
+      <h2>캐릭터 구매 / 선택</h2>
+      <div class="shop-grid" id="char-shop"></div>
+    </div>
+
+    <div id="tab-rank" class="tab-content">
+      <h2>전체 랭킹</h2>
+      <div class="rank-sort">
+        <button class="active" data-sort="money">💰 돈 순위</button>
+        <button data-sort="laps">🔄 바퀴 순위</button>
+      </div>
+      <div id="rankList">로그인 후 랭킹을 볼 수 있습니다</div>
+    </div>
+  </div>
+
+  <script>
+    // ========== API ==========
+    const API = window.location.origin; // 같은 서버
+    let token = localStorage.getItem('poly_token') || null;
+    let username = localStorage.getItem('poly_user') || null;
+    let isGuest = !token;
+    let saveTimer = null;
+    let lastSaveMsg = '';
+
+    async function api(path, opts = {}) {
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      const res = await fetch(API + path, { ...opts, headers });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || '요청 실패');
+      return data;
+    }
+
+    // ========== 데이터 ==========
+    const POLYGONS = [
+      { id: 'tri',   name: '삼각형', sides: 3,  price: 0,     baseReward: 1,  color: '#38bdf8' },
+      { id: 'sq',    name: '사각형', sides: 4,  price: 50,    baseReward: 3,  color: '#a78bfa' },
+      { id: 'pent',  name: '오각형', sides: 5,  price: 300,   baseReward: 8,  color: '#34d399' },
+      { id: 'hex',   name: '육각형', sides: 6,  price: 1500,  baseReward: 20, color: '#fbbf24' },
+      { id: 'hept',  name: '칠각형', sides: 7,  price: 8000,  baseReward: 50, color: '#f472b6' },
+      { id: 'oct',   name: '팔각형', sides: 8,  price: 40000, baseReward: 120,color: '#fb7185' },
+    ];
+
+    const CHARACTERS = [
+      { id: 'turtle', name: '거북이', emoji: '🐢', price: 0,     mult: 1,   speed: 0.012 },
+      { id: 'rabbit', name: '토끼',   emoji: '🐰', price: 200,   mult: 1.5, speed: 0.018 },
+      { id: 'cat',    name: '고양이', emoji: '🐱', price: 1000,  mult: 2.5, speed: 0.022 },
+      { id: 'fox',    name: '여우',   emoji: '🦊', price: 5000,  mult: 4,   speed: 0.026 },
+      { id: 'dragon', name: '용',     emoji: '🐉', price: 25000, mult: 8,   speed: 0.03  },
+      { id: 'unicorn',name: '유니콘', emoji: '🦄', price: 100000,mult: 15,  speed: 0.035 },
+    ];
+
+    const MULT_UPGRADES = [
+      { id: 'm1', name: '기본 배율 +0.5', price: 100,   add: 0.5 },
+      { id: 'm2', name: '기본 배율 +1',   price: 500,   add: 1 },
+      { id: 'm3', name: '기본 배율 +2',   price: 2500,  add: 2 },
+      { id: 'm4', name: '기본 배율 +5',   price: 12000, add: 5 },
+      { id: 'm5', name: '기본 배율 +10',  price: 50000, add: 10 },
+    ];
+
+    // ========== 상태 ==========
+    let money = 0;
+    let totalLaps = 0;
+    let ownedPolys = new Set(['tri']);
+    let ownedChars = new Set(['turtle']);
+    let ownedMults = new Set();
+    let currentPolyId = 'tri';
+    let currentCharId = 'turtle';
+    let progress = 0;
+    let edgeIndex = 0;
+    let floatTexts = [];
+
+    // ========== 캔버스 ==========
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width;
+    const H = canvas.height;
+    const CX = W / 2;
+    const CY = H / 2 + 10;
+    const RADIUS = 130;
+
+    function getPoly(id) { return POLYGONS.find(p => p.id === id); }
+    function getChar(id) { return CHARACTERS.find(c => c.id === id); }
+
+    function getExtraMult() {
+      let m = 1;
+      MULT_UPGRADES.forEach(u => { if (ownedMults.has(u.id)) m += u.add; });
+      return m;
+    }
+    function getTotalMult() {
+      return getChar(currentCharId).mult * getExtraMult();
+    }
+    function getReward() {
+      return Math.floor(getPoly(currentPolyId).baseReward * getTotalMult());
+    }
+
+    function getVertices(sides) {
+      const verts = [];
+      const startAngle = -Math.PI / 2;
+      for (let i = 0; i < sides; i++) {
+        const a = startAngle + (i * 2 * Math.PI) / sides;
+        verts.push({ x: CX + RADIUS * Math.cos(a), y: CY + RADIUS * Math.sin(a) });
+      }
+      return verts;
+    }
+
+    // ========== 입체 캐릭터 ==========
+    function drawCharacter(id) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.beginPath();
+      ctx.ellipse(0, 14, 14, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      if (id === 'turtle') drawTurtle();
+      else if (id === 'rabbit') drawRabbit();
+      else if (id === 'cat') drawCat();
+      else if (id === 'fox') drawFox();
+      else if (id === 'dragon') drawDragon();
+      else if (id === 'unicorn') drawUnicorn();
+    }
+
+    function drawTurtle() {
+      const shellGrad = ctx.createRadialGradient(-3, -4, 2, 0, 0, 16);
+      shellGrad.addColorStop(0, '#6ee7b7');
+      shellGrad.addColorStop(0.5, '#10b981');
+      shellGrad.addColorStop(1, '#047857');
+      ctx.beginPath();
+      ctx.ellipse(0, 2, 15, 12, 0, 0, Math.PI * 2);
+      ctx.fillStyle = shellGrad; ctx.fill();
+      ctx.strokeStyle = '#065f46'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.strokeStyle = 'rgba(6,78,59,0.5)'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, -8); ctx.lineTo(0, 12);
+      ctx.moveTo(-10, -2); ctx.lineTo(10, 6);
+      ctx.moveTo(10, -2); ctx.lineTo(-10, 6);
+      ctx.stroke();
+      const headGrad = ctx.createRadialGradient(-2, -12, 1, 0, -11, 7);
+      headGrad.addColorStop(0, '#6ee7b7'); headGrad.addColorStop(1, '#059669');
+      ctx.beginPath(); ctx.arc(0, -11, 7, 0, Math.PI * 2);
+      ctx.fillStyle = headGrad; ctx.fill();
+      ctx.strokeStyle = '#065f46'; ctx.stroke();
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath(); ctx.arc(-2.5, -12, 1.8, 0, Math.PI * 2); ctx.arc(2.5, -12, 1.8, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(-2, -12.5, 0.7, 0, Math.PI * 2); ctx.arc(3, -12.5, 0.7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#059669';
+      [[-12, 8], [12, 8], [-10, 14], [10, 14]].forEach(([x, y]) => {
+        ctx.beginPath(); ctx.ellipse(x, y, 4, 3, 0, 0, Math.PI * 2); ctx.fill();
+      });
+    }
+
+    function drawRabbit() {
+      const bodyGrad = ctx.createRadialGradient(-2, 2, 2, 0, 4, 12);
+      bodyGrad.addColorStop(0, '#fef3c7'); bodyGrad.addColorStop(1, '#d97706');
+      ctx.beginPath(); ctx.ellipse(0, 5, 11, 10, 0, 0, Math.PI * 2);
+      ctx.fillStyle = bodyGrad; ctx.fill();
+      ctx.strokeStyle = '#92400e'; ctx.lineWidth = 1.2; ctx.stroke();
+      const headGrad = ctx.createRadialGradient(-1, -8, 1, 0, -7, 9);
+      headGrad.addColorStop(0, '#fef3c7'); headGrad.addColorStop(1, '#b45309');
+      ctx.beginPath(); ctx.arc(0, -7, 9, 0, Math.PI * 2);
+      ctx.fillStyle = headGrad; ctx.fill();
+      ctx.strokeStyle = '#92400e'; ctx.stroke();
+      [[-5, -18], [5, -18]].forEach(([x, y], i) => {
+        const earGrad = ctx.createLinearGradient(x, y - 8, x, y + 6);
+        earGrad.addColorStop(0, '#fbbf24'); earGrad.addColorStop(1, '#b45309');
+        ctx.beginPath(); ctx.ellipse(x, y, 3.5, 9, i === 0 ? -0.2 : 0.2, 0, Math.PI * 2);
+        ctx.fillStyle = earGrad; ctx.fill();
+        ctx.strokeStyle = '#92400e'; ctx.stroke();
+        ctx.fillStyle = '#fce7f3';
+        ctx.beginPath(); ctx.ellipse(x, y, 1.5, 5, i === 0 ? -0.2 : 0.2, 0, Math.PI * 2); ctx.fill();
+      });
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath(); ctx.arc(-3, -8, 2, 0, Math.PI * 2); ctx.arc(3, -8, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(-2.3, -8.6, 0.8, 0, Math.PI * 2); ctx.arc(3.7, -8.6, 0.8, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f472b6';
+      ctx.beginPath(); ctx.ellipse(0, -5, 2, 1.5, 0, 0, Math.PI * 2); ctx.fill();
+    }
+
+    function drawCat() {
+      const bodyGrad = ctx.createRadialGradient(-2, 3, 2, 0, 5, 12);
+      bodyGrad.addColorStop(0, '#fef08a'); bodyGrad.addColorStop(1, '#ca8a04');
+      ctx.beginPath(); ctx.ellipse(0, 6, 12, 10, 0, 0, Math.PI * 2);
+      ctx.fillStyle = bodyGrad; ctx.fill();
+      ctx.strokeStyle = '#854d0e'; ctx.lineWidth = 1.2; ctx.stroke();
+      const headGrad = ctx.createRadialGradient(-1, -8, 1, 0, -7, 10);
+      headGrad.addColorStop(0, '#fef08a'); headGrad.addColorStop(1, '#a16207');
+      ctx.beginPath(); ctx.arc(0, -7, 10, 0, Math.PI * 2);
+      ctx.fillStyle = headGrad; ctx.fill();
+      ctx.strokeStyle = '#854d0e'; ctx.stroke();
+      ctx.fillStyle = '#ca8a04';
+      ctx.beginPath(); ctx.moveTo(-9, -12); ctx.lineTo(-4, -20); ctx.lineTo(0, -11); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(9, -12); ctx.lineTo(4, -20); ctx.lineTo(0, -11); ctx.fill();
+      ctx.fillStyle = '#fce7f3';
+      ctx.beginPath(); ctx.moveTo(-7, -13); ctx.lineTo(-4.5, -17); ctx.lineTo(-2, -12); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(7, -13); ctx.lineTo(4.5, -17); ctx.lineTo(2, -12); ctx.fill();
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath(); ctx.ellipse(-3.5, -8, 2.2, 2.8, 0, 0, Math.PI * 2); ctx.ellipse(3.5, -8, 2.2, 2.8, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#4ade80';
+      ctx.beginPath(); ctx.ellipse(-3.5, -8, 1.2, 2, 0, 0, Math.PI * 2); ctx.ellipse(3.5, -8, 1.2, 2, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(-3, -9, 0.7, 0, Math.PI * 2); ctx.arc(4, -9, 0.7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f472b6';
+      ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(-2, -3); ctx.lineTo(2, -3); ctx.fill();
+      ctx.strokeStyle = 'rgba(15,23,42,0.6)'; ctx.lineWidth = 1;
+      [[-12, -5], [-12, -3], [12, -5], [12, -3]].forEach(([x, y], i) => {
+        ctx.beginPath(); ctx.moveTo(i < 2 ? -4 : 4, -4); ctx.lineTo(x, y); ctx.stroke();
+      });
+    }
+
+    function drawFox() {
+      const bodyGrad = ctx.createRadialGradient(-2, 3, 2, 0, 5, 12);
+      bodyGrad.addColorStop(0, '#fdba74'); bodyGrad.addColorStop(1, '#c2410c');
+      ctx.beginPath(); ctx.ellipse(0, 6, 12, 10, 0, 0, Math.PI * 2);
+      ctx.fillStyle = bodyGrad; ctx.fill();
+      ctx.strokeStyle = '#7c2d12'; ctx.lineWidth = 1.2; ctx.stroke();
+      const headGrad = ctx.createRadialGradient(-1, -8, 1, 0, -6, 11);
+      headGrad.addColorStop(0, '#fdba74'); headGrad.addColorStop(1, '#9a3412');
+      ctx.beginPath();
+      ctx.moveTo(-10, -5); ctx.quadraticCurveTo(-12, -14, 0, -16);
+      ctx.quadraticCurveTo(12, -14, 10, -5); ctx.quadraticCurveTo(0, -2, -10, -5);
+      ctx.fillStyle = headGrad; ctx.fill();
+      ctx.strokeStyle = '#7c2d12'; ctx.stroke();
+      ctx.fillStyle = '#c2410c';
+      ctx.beginPath(); ctx.moveTo(-8, -12); ctx.lineTo(-5, -22); ctx.lineTo(-1, -13); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(8, -12); ctx.lineTo(5, -22); ctx.lineTo(1, -13); ctx.fill();
+      ctx.fillStyle = '#fce7f3';
+      ctx.beginPath(); ctx.moveTo(-6.5, -13); ctx.lineTo(-5, -18); ctx.lineTo(-3, -13); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(6.5, -13); ctx.lineTo(5, -18); ctx.lineTo(3, -13); ctx.fill();
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath(); ctx.ellipse(-3.5, -10, 2, 2.5, 0, 0, Math.PI * 2); ctx.ellipse(3.5, -10, 2, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fbbf24';
+      ctx.beginPath(); ctx.ellipse(-3.5, -10, 1, 1.5, 0, 0, Math.PI * 2); ctx.ellipse(3.5, -10, 1, 1.5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(-3, -10.8, 0.6, 0, Math.PI * 2); ctx.arc(4, -10.8, 0.6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath(); ctx.ellipse(0, -5, 2.5, 2, 0, 0, Math.PI * 2); ctx.fill();
+    }
+
+    function drawDragon() {
+      const bodyGrad = ctx.createRadialGradient(-2, 2, 2, 0, 4, 14);
+      bodyGrad.addColorStop(0, '#86efac'); bodyGrad.addColorStop(0.5, '#16a34a'); bodyGrad.addColorStop(1, '#14532d');
+      ctx.beginPath(); ctx.ellipse(0, 5, 13, 11, 0, 0, Math.PI * 2);
+      ctx.fillStyle = bodyGrad; ctx.fill();
+      ctx.strokeStyle = '#14532d'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.strokeStyle = 'rgba(20,83,45,0.4)'; ctx.lineWidth = 1;
+      for (let i = -8; i <= 8; i += 5) { ctx.beginPath(); ctx.arc(i, 4, 4, 0.2, Math.PI - 0.2); ctx.stroke(); }
+      const headGrad = ctx.createRadialGradient(-1, -9, 1, 0, -8, 10);
+      headGrad.addColorStop(0, '#86efac'); headGrad.addColorStop(1, '#15803d');
+      ctx.beginPath(); ctx.arc(0, -8, 10, 0, Math.PI * 2);
+      ctx.fillStyle = headGrad; ctx.fill();
+      ctx.strokeStyle = '#14532d'; ctx.stroke();
+      ctx.fillStyle = '#fbbf24';
+      ctx.beginPath(); ctx.moveTo(-6, -15); ctx.lineTo(-4, -24); ctx.lineTo(-1, -15); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(6, -15); ctx.lineTo(4, -24); ctx.lineTo(1, -15); ctx.fill();
+      ctx.strokeStyle = '#fef08a'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(-5, -16); ctx.lineTo(-4, -22); ctx.moveTo(5, -16); ctx.lineTo(4, -22); ctx.stroke();
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath(); ctx.ellipse(-3.5, -9, 2.5, 3, 0, 0, Math.PI * 2); ctx.ellipse(3.5, -9, 2.5, 3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath(); ctx.ellipse(-3.5, -9, 1.3, 2, 0, 0, Math.PI * 2); ctx.ellipse(3.5, -9, 1.3, 2, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(-3, -10, 0.7, 0, Math.PI * 2); ctx.arc(4, -10, 0.7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(34,197,94,0.7)';
+      ctx.beginPath(); ctx.moveTo(-12, 0); ctx.quadraticCurveTo(-22, -8, -18, 8); ctx.quadraticCurveTo(-14, 4, -12, 0); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(12, 0); ctx.quadraticCurveTo(22, -8, 18, 8); ctx.quadraticCurveTo(14, 4, 12, 0); ctx.fill();
+    }
+
+    function drawUnicorn() {
+      const bodyGrad = ctx.createRadialGradient(-2, 3, 2, 0, 5, 13);
+      bodyGrad.addColorStop(0, '#e9d5ff'); bodyGrad.addColorStop(1, '#7c3aed');
+      ctx.beginPath(); ctx.ellipse(0, 6, 12, 10, 0, 0, Math.PI * 2);
+      ctx.fillStyle = bodyGrad; ctx.fill();
+      ctx.strokeStyle = '#5b21b6'; ctx.lineWidth = 1.2; ctx.stroke();
+      const headGrad = ctx.createRadialGradient(-1, -8, 1, 0, -7, 10);
+      headGrad.addColorStop(0, '#f3e8ff'); headGrad.addColorStop(1, '#6d28d9');
+      ctx.beginPath(); ctx.arc(0, -7, 10, 0, Math.PI * 2);
+      ctx.fillStyle = headGrad; ctx.fill();
+      ctx.strokeStyle = '#5b21b6'; ctx.stroke();
+      const hornGrad = ctx.createLinearGradient(0, -28, 0, -14);
+      hornGrad.addColorStop(0, '#fef08a'); hornGrad.addColorStop(0.5, '#fbbf24'); hornGrad.addColorStop(1, '#d97706');
+      ctx.beginPath(); ctx.moveTo(-2.5, -15); ctx.lineTo(0, -28); ctx.lineTo(2.5, -15); ctx.closePath();
+      ctx.fillStyle = hornGrad; ctx.fill();
+      ctx.strokeStyle = '#b45309'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.strokeStyle = 'rgba(180,83,9,0.6)';
+      ctx.beginPath(); ctx.moveTo(-1, -17); ctx.lineTo(1, -20); ctx.moveTo(-1.5, -21); ctx.lineTo(1.5, -24); ctx.stroke();
+      ctx.fillStyle = '#c084fc';
+      ctx.beginPath(); ctx.moveTo(-8, -12); ctx.quadraticCurveTo(-14, -18, -6, -22); ctx.quadraticCurveTo(-2, -16, -8, -12); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(8, -12); ctx.quadraticCurveTo(14, -18, 6, -22); ctx.quadraticCurveTo(2, -16, 8, -12); ctx.fill();
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath(); ctx.ellipse(-3.5, -8, 2.2, 2.8, 0, 0, Math.PI * 2); ctx.ellipse(3.5, -8, 2.2, 2.8, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#a78bfa';
+      ctx.beginPath(); ctx.ellipse(-3.5, -8, 1.2, 1.8, 0, 0, Math.PI * 2); ctx.ellipse(3.5, -8, 1.2, 1.8, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(-3, -9, 0.7, 0, Math.PI * 2); ctx.arc(4, -9, 0.7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f9a8d4';
+      ctx.beginPath(); ctx.ellipse(0, -3.5, 2.5, 2, 0, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // ========== 그리기 ==========
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      ctx.strokeStyle = 'rgba(51,65,85,0.4)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+      for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+      const poly = getPoly(currentPolyId);
+      const verts = getVertices(poly.sides);
+      ctx.beginPath();
+      ctx.moveTo(verts[0].x, verts[0].y);
+      for (let i = 1; i < verts.length; i++) ctx.lineTo(verts[i].x, verts[i].y);
+      ctx.closePath();
+      ctx.fillStyle = poly.color + '22'; ctx.fill();
+      ctx.strokeStyle = poly.color; ctx.lineWidth = 3; ctx.stroke();
+      verts.forEach(v => {
+        ctx.beginPath(); ctx.arc(v.x, v.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = poly.color; ctx.fill();
+      });
+
+      const a = verts[edgeIndex];
+      const b = verts[(edgeIndex + 1) % verts.length];
+      const px = a.x + (b.x - a.x) * progress;
+      const py = a.y + (b.y - a.y) * progress;
+      const angle = Math.atan2(b.y - a.y, b.x - a.x);
+
+      const ch = getChar(currentCharId);
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(angle + Math.PI / 2);
+      drawCharacter(ch.id);
+      ctx.restore();
+
+      floatTexts.forEach(ft => {
+        ctx.globalAlpha = ft.life;
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = 'bold 18px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('+' + ft.amount, ft.x, ft.y);
+        ctx.globalAlpha = 1;
+      });
+    }
+
+    function update() {
+      const ch = getChar(currentCharId);
+      progress += ch.speed;
+      if (progress >= 1) {
+        progress = 0;
+        edgeIndex++;
+        const sides = getPoly(currentPolyId).sides;
+        if (edgeIndex >= sides) {
+          edgeIndex = 0;
+          totalLaps++;
+          const reward = getReward();
+          money += reward;
+          const verts = getVertices(sides);
+          floatTexts.push({ x: verts[0].x, y: verts[0].y - 20, amount: reward, life: 1 });
+          updateUI();
+          scheduleSave();
+        }
+      }
+      floatTexts = floatTexts.filter(ft => { ft.y -= 0.8; ft.life -= 0.02; return ft.life > 0; });
+    }
+
+    // ========== UI ==========
+    function formatMoney(n) {
+      if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
+      if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+      if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+      return Math.floor(n).toString();
+    }
+
+    function updateUI() {
+      document.getElementById('money').textContent = formatMoney(money);
+      document.getElementById('laps').textContent = totalLaps;
+      document.getElementById('mult').textContent = '×' + getTotalMult().toFixed(1);
+      renderShops();
+      updateUserBar();
+    }
+
+    function updateUserBar() {
+      const info = document.getElementById('userInfo');
+      const btnLogin = document.getElementById('btnLogin');
+      const btnLogout = document.getElementById('btnLogout');
+      if (token && username) {
+        info.innerHTML = '👤 <strong>' + username + '</strong>';
+        btnLogin.style.display = 'none';
+        btnLogout.style.display = '';
+      } else {
+        info.textContent = '게스트 (저장 안 됨)';
+        btnLogin.style.display = '';
+        btnLogout.style.display = 'none';
+      }
+    }
+
+    function renderShops() {
+      const polyEl = document.getElementById('poly-shop');
+      polyEl.innerHTML = '';
+      POLYGONS.forEach(p => {
+        const owned = ownedPolys.has(p.id);
+        const active = currentPolyId === p.id;
+        const div = document.createElement('div');
+        div.className = 'shop-item' + (owned ? ' owned' : '') + (active ? ' active' : '');
+        div.innerHTML = `<div class="shop-info"><strong>${p.name} (${p.sides}변)</strong><small>바퀴당 기본 ${p.baseReward}</small></div>`;
+        const btn = document.createElement('button');
+        if (active) { btn.textContent = '사용 중'; btn.disabled = true; btn.className = 'owned-btn'; }
+        else if (owned) {
+          btn.textContent = '선택';
+          btn.onclick = () => { currentPolyId = p.id; edgeIndex = 0; progress = 0; updateUI(); scheduleSave(); };
+        } else {
+          btn.textContent = formatMoney(p.price);
+          btn.disabled = money < p.price;
+          btn.onclick = () => {
+            if (money >= p.price) {
+              money -= p.price; ownedPolys.add(p.id); currentPolyId = p.id;
+              edgeIndex = 0; progress = 0; updateUI(); scheduleSave();
+            }
+          };
+        }
+        div.appendChild(btn); polyEl.appendChild(div);
+      });
+
+      const multEl = document.getElementById('mult-shop');
+      multEl.innerHTML = '';
+      MULT_UPGRADES.forEach(u => {
+        const owned = ownedMults.has(u.id);
+        const div = document.createElement('div');
+        div.className = 'shop-item' + (owned ? ' owned' : '');
+        div.innerHTML = `<div class="shop-info"><strong>${u.name}</strong><small>총 배율에 +${u.add}</small></div>`;
+        const btn = document.createElement('button');
+        if (owned) { btn.textContent = '구매 완료'; btn.disabled = true; btn.className = 'owned-btn'; }
+        else {
+          btn.textContent = formatMoney(u.price);
+          btn.disabled = money < u.price;
+          btn.onclick = () => {
+            if (money >= u.price) { money -= u.price; ownedMults.add(u.id); updateUI(); scheduleSave(); }
+          };
+        }
+        div.appendChild(btn); multEl.appendChild(div);
+      });
+
+      const charEl = document.getElementById('char-shop');
+      charEl.innerHTML = '';
+      CHARACTERS.forEach(c => {
+        const owned = ownedChars.has(c.id);
+        const active = currentCharId === c.id;
+        const div = document.createElement('div');
+        div.className = 'shop-item' + (owned ? ' owned' : '') + (active ? ' active' : '');
+        div.innerHTML = `<div class="shop-info"><strong>${c.emoji} ${c.name}</strong><small>배율 ×${c.mult} · 속도 ${c.speed.toFixed(3)}</small></div>`;
+        const btn = document.createElement('button');
+        if (active) { btn.textContent = '사용 중'; btn.disabled = true; btn.className = 'owned-btn'; }
+        else if (owned) {
+          btn.textContent = '선택';
+          btn.onclick = () => { currentCharId = c.id; updateUI(); scheduleSave(); };
+        } else {
+          btn.textContent = formatMoney(c.price);
+          btn.disabled = money < c.price;
+          btn.onclick = () => {
+            if (money >= c.price) {
+              money -= c.price; ownedChars.add(c.id); currentCharId = c.id; updateUI(); scheduleSave();
+            }
+          };
+        }
+        div.appendChild(btn); charEl.appendChild(div);
+      });
+    }
+
+    // ========== 저장 ==========
+    function getProgressPayload() {
+      return {
+        money,
+        total_laps: totalLaps,
+        owned_polys: [...ownedPolys],
+        owned_chars: [...ownedChars],
+        owned_mults: [...ownedMults],
+        current_poly: currentPolyId,
+        current_char: currentCharId,
+      };
+    }
+
+    function applyProgress(p) {
+      money = p.money || 0;
+      totalLaps = p.total_laps || 0;
+      ownedPolys = new Set(p.owned_polys || ['tri']);
+      ownedChars = new Set(p.owned_chars || ['turtle']);
+      ownedMults = new Set(p.owned_mults || []);
+      currentPolyId = p.current_poly || 'tri';
+      currentCharId = p.current_char || 'turtle';
+      edgeIndex = 0;
+      progress = 0;
+    }
+
+    function scheduleSave() {
+      if (!token) return;
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(doSave, 2000);
+    }
+
+    async function doSave() {
+      if (!token) return;
+      try {
+        await api('/api/save', { method: 'POST', body: JSON.stringify(getProgressPayload()) });
+        lastSaveMsg = '저장됨 ' + new Date().toLocaleTimeString();
+        document.getElementById('saveStatus').textContent = lastSaveMsg;
+      } catch (e) {
+        document.getElementById('saveStatus').textContent = '저장 실패: ' + e.message;
+      }
+    }
+
+    // ========== 랭킹 ==========
+    let currentSort = 'money';
+
+    async function loadRanking(sort) {
+      currentSort = sort || currentSort;
+      document.querySelectorAll('.rank-sort button').forEach(b => {
+        b.classList.toggle('active', b.dataset.sort === currentSort);
+      });
+      const el = document.getElementById('rankList');
+      el.innerHTML = '불러오는 중...';
+      try {
+        const data = await api('/api/ranking?sort=' + currentSort);
+        if (!data.ranking.length) {
+          el.innerHTML = '<p style="color:#64748b;text-align:center;padding:20px;">아직 랭킹 데이터가 없습니다</p>';
+          return;
+        }
+        let html = '<table class="rank-table"><thead><tr><th>#</th><th>닉네임</th><th>돈</th><th>바퀴</th></tr></thead><tbody>';
+        data.ranking.forEach(r => {
+          const me = username && r.username === username ? ' class="rank-me"' : '';
+          html += `<tr${me}><td>${r.rank}</td><td>${r.username}</td><td>${formatMoney(r.money)}</td><td>${r.total_laps}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        el.innerHTML = html;
+      } catch (e) {
+        el.innerHTML = '<p style="color:#f87171;">랭킹을 불러올 수 없습니다 (서버 확인)</p>';
+      }
+    }
+
+    // ========== 인증 ==========
+    let authMode = 'login'; // login | register
+
+    function showAuth(mode) {
+      authMode = mode || 'login';
+      document.getElementById('authModal').classList.remove('hidden');
+      document.getElementById('authTitle').textContent = authMode === 'login' ? '로그인' : '회원가입';
+      document.getElementById('authSubmit').textContent = authMode === 'login' ? '로그인' : '가입하기';
+      document.getElementById('authSwitchText').textContent = authMode === 'login' ? '계정이 없나요?' : '이미 계정이 있나요?';
+      document.getElementById('authSwitchLink').textContent = authMode === 'login' ? '회원가입' : '로그인';
+      document.getElementById('authError').textContent = '';
+      document.getElementById('authUser').value = '';
+      document.getElementById('authPass').value = '';
+    }
+
+    function hideAuth() {
+      document.getElementById('authModal').classList.add('hidden');
+    }
+
+    async function submitAuth() {
+      const u = document.getElementById('authUser').value.trim();
+      const p = document.getElementById('authPass').value;
+      const err = document.getElementById('authError');
+      err.textContent = '';
+      try {
+        const path = authMode === 'login' ? '/api/login' : '/api/register';
+        const data = await api(path, { method: 'POST', body: JSON.stringify({ username: u, password: p }) });
+        token = data.token;
+        username = data.username;
+        isGuest = false;
+        localStorage.setItem('poly_token', token);
+        localStorage.setItem('poly_user', username);
+        hideAuth();
+        // 진행도 불러오기
+        try {
+          const me = await api('/api/me');
+          applyProgress(me.progress);
+        } catch (_) {}
+        updateUI();
+        document.getElementById('saveStatus').textContent = '로그인됨';
+        loadRanking();
+      } catch (e) {
+        err.textContent = e.message;
+      }
+    }
+
+    function logout() {
+      token = null;
+      username = null;
+      isGuest = true;
+      localStorage.removeItem('poly_token');
+      localStorage.removeItem('poly_user');
+      // 게스트는 현재 상태 유지 (원하면 초기화 가능)
+      updateUI();
+      document.getElementById('saveStatus').textContent = '';
+    }
+
+    // ========== 이벤트 ==========
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+        if (tab.dataset.tab === 'rank') loadRanking();
+      });
+    });
+
+    document.querySelectorAll('.rank-sort button').forEach(b => {
+      b.addEventListener('click', () => loadRanking(b.dataset.sort));
+    });
+
+    document.getElementById('authSubmit').onclick = submitAuth;
+    document.getElementById('authGuest').onclick = () => { hideAuth(); isGuest = true; updateUI(); };
+    document.getElementById('authSwitchLink').onclick = () => showAuth(authMode === 'login' ? 'register' : 'login');
+    document.getElementById('btnLogin').onclick = () => showAuth('login');
+    document.getElementById('btnLogout').onclick = logout;
+    document.getElementById('authPass').addEventListener('keydown', e => { if (e.key === 'Enter') submitAuth(); });
+
+    // 주기적 저장
+    setInterval(() => { if (token) doSave(); }, 30000);
+
+    // ========== 시작 ==========
+    async function boot() {
+      if (token) {
+        try {
+          const me = await api('/api/me');
+          username = me.username;
+          applyProgress(me.progress);
+          isGuest = false;
+          hideAuth();
+          document.getElementById('saveStatus').textContent = '진행도 불러옴';
+        } catch (e) {
+          // 토큰 만료
+          token = null;
+          localStorage.removeItem('poly_token');
+          showAuth('login');
+        }
+      } else {
+        showAuth('login');
+      }
+      updateUI();
+    }
+
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    boot();
+    loop();
+  </script>
+</body>
+</html>
